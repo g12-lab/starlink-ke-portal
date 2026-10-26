@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starlink KE — Satellite Data Top-Up</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg2: #121722;
+    --card: rgba(20, 26, 38, 0.85);
+    --card-border: rgba(0, 242, 254, 0.15);
+    --teal: #00f2fe;
+    --blue: #4facfe;
+    --text: #e6edf3;
+    --muted: #8b95a5;
+    --safaricom: #00a651;
+    --airtel: #e30613;
+    --danger: #ff4d5e;
+    --success: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #0f1522 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.6) 0, transparent 100%),
+      radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.4) 0, transparent 100%),
+      radial-gradient(2px 2px at 80% 20%, rgba(0,242,254,0.5) 0, transparent 100%),
+      radial-gradient(1px 1px at 40% 90%, rgba(255,255,255,0.5) 0, transparent 100%),
+      radial-gradient(1px 1px at 90% 60%, rgba(79,172,254,0.5) 0, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+  /* NAVBAR */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 14, 20, 0.75);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--card-border);
+    padding: 14px 0;
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; letter-spacing: 1px; }
+  .logo .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--teal);
+    box-shadow: 0 0 12px var(--teal), 0 0 24px var(--teal);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .logo span.grad {
+    background: linear-gradient(90deg, var(--teal), var(--blue));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted);
+    background: rgba(0,242,254,0.06);
+    border: 1px solid rgba(0,242,254,0.2);
+    padding: 5px 10px; border-radius: 20px;
+  }
+  .status .live { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .contact-badge {
+    background: linear-gradient(90deg, #25D366, #128C7E);
+    color: white; text-decoration: none;
+    padding: 8px 14px; border-radius: 24px; font-size: 13px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.35);
+  }
+
+  /* HERO */
+  .hero { text-align: center; padding: 40px 0 20px; }
+  .hero h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 800; line-height: 1.15; margin-bottom: 10px; }
+  .hero h1 span { background: linear-gradient(90deg, var(--teal), var(--blue)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); font-size: 14px; max-width: 560px; margin: 0 auto; }
+
+  /* NETWORK SELECTOR */
+  .net-select { display: flex; justify-content: center; gap: 10px; margin: 24px 0 6px; }
+  .net-btn {
+    background: var(--card); border: 2px solid rgba(255,255,255,0.08);
+    color: var(--muted); padding: 12px 22px; border-radius: 12px; cursor: pointer;
+    font-weight: 700; font-size: 14px; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .net-btn.active.safaricom { border-color: var(--safaricom); color: white; background: rgba(0,166,81,0.15); box-shadow: 0 0 24px rgba(0,166,81,0.3); }
+  .net-btn.active.airtel { border-color: var(--airtel); color: white; background: rgba(227,6,19,0.15); box-shadow: 0 0 24px rgba(227,6,19,0.3); }
+  .net-btn i { font-size: 16px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; margin: 20px 0 12px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 0 auto; background: rgba(255,255,255,0.04); border: 1px solid transparent;
+    color: var(--muted); padding: 10px 16px; border-radius: 10px; cursor: pointer;
+    font-weight: 600; font-size: 13px; white-space: nowrap; transition: all 0.2s;
+  }
+  .tab.active { background: linear-gradient(90deg, rgba(0,242,254,0.15), rgba(79,172,254,0.15)); border-color: var(--teal); color: white; }
+
+  /* BUNDLE GRID */
+  .bundles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin: 8px 0 30px; }
+  .bundle {
+    position: relative; background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 16px; padding: 20px; transition: all 0.25s; cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+  .bundle:hover {
+    transform: translateY(-4px);
+    border-color: var(--teal);
+    box-shadow: 0 12px 32px rgba(0,242,254,0.18);
+  }
+  .bundle .badge {
+    position: absolute; top: -8px; right: 14px;
+    background: linear-gradient(90deg, var(--teal), var(--blue));
+    color: #001; font-size: 9px; font-weight: 900; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+  .bundle .size { font-size: 26px; font-weight: 800; line-height: 1; }
+  .bundle .unit { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .bundle .duration { font-size: 11px; color: var(--teal); margin-top: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .bundle .price-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .bundle .price { font-size: 22px; font-weight: 800; color: var(--teal); }
+  .bundle .price small { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .bundle .buy {
+    background: linear-gradient(90deg, var(--teal), var(--blue)); border: none;
+    color: #001018; font-weight: 800; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  .bundle .buy:active { transform: scale(0.96); }
+
+  /* MODAL */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px); z-index: 100; padding: 16px; overflow-y: auto;
+  }
+  .modal-bg.open { display: flex; align-items: flex-start; justify-content: center; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--card-border);
+    border-radius: 18px; max-width: 440px; width: 100%; padding: 24px; margin: auto;
+    position: relative; box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  }
+  .modal .close {
+    position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.06);
+    border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px;
+  }
+  .modal h2 { font-size: 20px; margin-bottom: 4px; }
+  .modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .modal .summary {
+    background: rgba(0,242,254,0.06); border: 1px solid rgba(0,242,254,0.2);
+    border-radius: 12px; padding: 14px; margin-bottom: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal .summary .left strong { font-size: 15px; }
+  .modal .summary .left div { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .modal .summary .amt { font-size: 22px; font-weight: 800; color: var(--teal); }
+  .modal label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal input {
+    width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); padding: 12px 14px; border-radius: 10px; font-size: 15px; font-family: inherit; outline: none;
+  }
+  .modal input:focus { border-color: var(--teal); }
+  .net-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px; margin-top: 6px;
+  }
+  .net-tag.safaricom { background: rgba(0,166,81,0.2); color: #4ade80; }
+  .net-tag.airtel { background: rgba(227,6,19,0.2); color: #fca5a5; }
+  .net-tag.unknown { background: rgba(139,149,165,0.2); color: var(--muted); }
+  .modal .primary-btn {
+    width: 100%; background: linear-gradient(90deg, var(--teal), var(--blue));
+    border: none; color: #001018; font-weight: 800; padding: 14px; border-radius: 10px;
+    cursor: pointer; font-size: 15px; margin-top: 20px;
+  }
+  .modal .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .instructions { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 16px; margin-bottom: 6px; font-size: 13px; line-height: 1.7; }
+  .instructions .mpesa-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+  .instructions .mpesa-row:last-child { border-bottom: none; }
+  .instructions .mpesa-row span:first-child { color: var(--muted); }
+  .instructions .mpesa-row span:last-child { font-weight: 700; color: var(--text); }
+  .progress-wrap { padding: 12px 0; }
+  .progress-step { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 13px; color: var(--muted); }
+  .progress-step .dot { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .progress-step.active { color: var(--teal); font-weight: 700; }
+  .progress-step.active .dot { background: var(--teal); color: #001018; }
+  .progress-step.done { color: var(--success); }
+  .progress-step.done .dot { background: var(--success); color: white; }
+  .success-icon { text-align: center; font-size: 56px; color: var(--success); margin: 10px 0; }
+  .success-title { text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .success-sub { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+
+  /* TICKER */
+  .ticker-wrap {
+    position: fixed; bottom: 92px; left: 16px; z-index: 60; max-width: 320px;
+    pointer-events: none;
+  }
+  .ticker {
+    background: rgba(18,23,34,0.95); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 14px;
+    font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    animation: slideIn 0.4s ease;
+  }
+  @keyframes slideIn { from { transform: translateX(-110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .ticker i { color: var(--teal); font-size: 14px; }
+  .ticker strong { color: var(--text); }
+
+  /* SUPPORT WIDGET */
+  .support { position: fixed; bottom: 20px; right: 16px; z-index: 70; display: flex; flex-direction: column; gap: 10px; }
+  .support a {
+    width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 22px; text-decoration: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    transition: transform 0.2s;
+  }
+  .support a:active { transform: scale(0.92); }
+  .support .wa { background: #25D366; }
+  .support .call { background: linear-gradient(135deg, var(--teal), var(--blue)); color: #001018; }
+
+  /* FAQ */
+  .faq-wrap { margin: 30px 0 40px; }
+  .faq-wrap h2 { font-size: 22px; margin-bottom: 14px; }
+  .faq {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+  }
+  .faq-q {
+    padding: 14px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600; font-size: 14px;
+  }
+  .faq-q i { color: var(--teal); transition: transform 0.2s; font-size: 12px; }
+  .faq.open .faq-q i { transform: rotate(180deg); }
+  .faq-a {
+    max-height: 0; overflow: hidden; transition: max-height 0.3s;
+    padding: 0 16px; color: var(--muted); font-size: 13px; line-height: 1.7;
+  }
+  .faq.open .faq-a { max-height: 300px; padding-bottom: 14px; }
+
+  /* FOOTER */
+  footer { text-align: center; padding: 24px 0 100px; color: var(--muted); font-size: 12px; }
+  footer .line { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }
+  footer strong { color: var(--teal); }
+
+  @media (max-width: 480px) {
+    .status span { display: none; }
+    .status { padding: 4px 8px; }
+    .contact-badge span { display: none; }
+    .contact-badge { padding: 8px 12px; }
+    .bundle .size { font-size: 22px; }
+    .ticker-wrap { bottom: 84px; max-width: calc(100% - 24px); }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <div class="logo">
+      <div class="dot"></div>
+      <span><span class="grad">STARLINK</span> KE</span>
+    </div>
+    <div class="status">
+      <span class="live"></span>
+      <span>Satellite Link: ACTIVE · 99.8% Signal</span>
+    </div>
+    <a href="https://wa.me/254741601604" class="contact-badge" target="_blank" rel="noopener">
+      <i class="fab fa-whatsapp"></i><span>0741 601 604</span>
+    </a>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Satellite Data.<br><span>Instantly Refilled.</span></h1>
+    <p>Top up your Safaricom or Airtel line with high-speed Starlink satellite-backed data bundles — starting at just KES 15.</p>
+
+    <div class="net-select">
+      <button class="net-btn safaricom active" data-net="safaricom" onclick="selectNetwork('safaricom')">
+        <i class="fas fa-sim-card"></i> Safaricom
+      </button>
+      <button class="net-btn airtel" data-net="airtel" onclick="selectNetwork('airtel')">
+        <i class="fas fa-sim-card"></i> Airtel
+      </button>
+    </div>
+  </section>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="bundles" id="bundles"></div>
+
+  <section class="faq-wrap">
+    <h2>Frequently Asked</h2>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">How does satellite data work on my standard SIM?<i class="fas fa-chevron-down"></i></div>
+      <div class="faq-a">Starlink KE partners with local mobile carriers to route your bundle through satellite backhaul, giving you data even where fibre doesn't reach. Your SIM stays the same — no new SIM card needed.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">How fast is the data credited after payment?<i class="fas fa-chevron-down"></i></div>
+      <div class="faq-a">After you pay via M-Pesa and submit your transaction code, our system verifies and credits your line within 2 minutes. You'll receive an SMS from your network confirming the bundle.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">What if my data doesn't arrive?<i class="fas fa-chevron-down"></i></div>
+      <div class="faq-a">Message us on WhatsApp at 0741 601 604 with your phone number and M-Pesa code. We resolve within minutes or refund in full.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">Is this real Starlink or resold local data?<i class="fas fa-chevron-down"></i></div>
+      <div class="faq-a">We're a reseller authorised to provision bundles through our carrier partners. The data you receive is standard Safaricom/Airtel data — delivered instantly at prices far below retail.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">Do unlimited bundles have a fair-use cap?<i class="fas fa-chevron-down"></i></div>
+      <div class="faq-a">Yes. All "Unlimited" bundles comply with the carrier's fair-use policy (typically 100-150 GB at full speed, then throttle). Daily and hourly unlimited bundles are capped at 25 GB/hour at max speed.</div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap line">
+    © <span id="year"></span> <strong>STARLINK KE</strong> · Nairobi, Kenya<br>
+    <span style="font-size:11px;">Satellite-backed data top-up · WhatsApp 0741 601 604</span>
+  </div>
+</footer>
+
+<!-- SUPPORT WIDGET -->
+<div class="support">
+  <a href="https://wa.me/254741601604" class="wa" target="_blank" rel="noopener" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+  <a href="tel:0741601604" class="call" title="Call"><i class="fas fa-phone"></i></a>
+</div>
+
+<!-- LIVE TICKER -->
+<div class="ticker-wrap" id="tickerWrap"></div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this) closeModal()">
+  <div class="modal" id="modal">
+    <button class="close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+const MOMO_NUMBER = "0741601604";
+const WHATSAPP = "254741601604";
+const YEAR = new Date().getFullYear();
+document.getElementById('year').textContent = YEAR;
+
+let currentNetwork = 'safaricom';
+let currentTab = 'hourly';
+
+const bundles = {
+  hourly: [
+    { size: 10, unit: 'GB', duration: '1 Hour', price: 15, badge: null },
+    { size: 25, unit: 'GB', duration: '3 Hours', price: 30, badge: 'BEST VALUE' },
+    { size: 'Unlimited', unit: '', duration: '6 Hours', price: 50, badge: null }
+  ],
+  daily: [
+    { size: 20, unit: 'GB', duration: '24 Hours', price: 45, badge: null },
+    { size: 50, unit: 'GB', duration: '24 Hours', price: 70, badge: 'MOST POPULAR' },
+    { size: 'Unlimited', unit: '', duration: '24 Hours', price: 100, badge: null }
+  ],
+  weekly: [
+    { size: 100, unit: 'GB', duration: '7 Days', price: 190, badge: null },
+    { size: 250, unit: 'GB', duration: '7 Days', price: 350, badge: 'BEST DEAL' },
+    { size: 'Unlimited', unit: '', duration: '7 Days', price: 500, badge: null }
+  ],
+  monthly: [
+    { size: 500, unit: 'GB', duration: '30 Days', price: 850, badge: null },
+    { size: 1000, unit: 'GB', displaySize: '1 TB', duration: '30 Days', price: 1200, badge: 'POPULAR' },
+    { size: 'Unlimited', unit: 'Extreme', duration: '30 Days', price: 1800, badge: null }
+  ]
+};
+
+const tabLabels = { hourly: 'Lightning Pass', daily: '24hr High-Speed', weekly: '7-Day Turbo', monthly: '30-Day Extreme' };
+
+function selectNetwork(net) {
+  currentNetwork = net;
+  document.querySelectorAll('.net-btn').forEach(b => b.classList.toggle('active', b.dataset.net === net));
+  renderBundles();
+}
+
+function renderTabs() {
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = Object.keys(bundles).map(k =>
+    `<button class="tab ${k === currentTab ? 'active' : ''}" onclick="selectTab('${k}')">${tabLabels[k]}</button>`
+  ).join('');
+}
+
+function selectTab(k) {
+  currentTab = k;
+  renderTabs();
+  renderBundles();
+}
+
+function renderBundles() {
+  const el = document.getElementById('bundles');
+  const items = bundles[currentTab];
+  el.innerHTML = items.map((b, i) => {
+    const displaySize = b.displaySize || b.size;
+    return `
+      <div class="bundle" onclick="openModal('${currentTab}', ${i})">
+        ${b.badge ? `<div class="badge">${b.badge}</div>` : ''}
+        <div class="size">${displaySize}${b.unit ? ' <span style="font-size:14px;color:var(--muted)">' + b.unit + '</span>' : ''}</div>
+        <div class="duration">${b.duration}</div>
+        <div class="price-row">
+          <div class="price">KES ${b.price.toLocaleString()}</div>
+          <button class="buy">Buy <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* MODAL STATE */
+let modalState = { bundle: null, phone: '', step: 1 };
+
+function openModal(tabKey, index) {
+  modalState = { bundle: bundles[tabKey][index], phone: '', step: 1 };
+  document.getEleme
