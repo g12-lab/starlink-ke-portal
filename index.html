@@ -419,4 +419,185 @@ let modalState = { bundle: null, phone: '', step: 1 };
 
 function openModal(tabKey, index) {
   modalState = { bundle: bundles[tabKey][index], phone: '', step: 1 };
-  document.getEleme
+  document.getElementById('modalBg').classList.add('open');
+  renderModalStep1();
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('open');
+  modalState = { bundle: null, phone: '', step: 1 };
+}
+
+function detectNetwork(phone) {
+  if (!phone) return 'unknown';
+  if (/^0(7(?:0[0-9]|1[0-9]|2[0-9]|4[0-9]|5[0-9]|7[0-9]|9[0-9])|1(?:0[0-9]|1[0-9]))/.test(phone)) return currentNetwork;
+  return 'unknown';
+}
+
+function renderModalStep1() {
+  const b = modalState.bundle;
+  const displaySize = b.displaySize || b.size;
+  const netBadge = currentNetwork === 'safaricom'
+    ? '<span class="net-tag safaricom"><i class="fas fa-check"></i> Safaricom</span>'
+    : '<span class="net-tag airtel"><i class="fas fa-check"></i> Airtel</span>';
+  document.getElementById('modalContent').innerHTML = `
+    <h2>Confirm Your Order</h2>
+    <div class="sub">Bundle will be credited to your line in seconds.</div>
+    <div class="summary">
+      <div class="left">
+        <strong>${displaySize}${b.unit ? ' ' + b.unit : ''} · ${b.duration}</strong>
+        <div>${currentNetwork === 'safaricom' ? 'Safaricom' : 'Airtel'} Data Bundle</div>
+      </div>
+      <div class="amt">KES ${b.price.toLocaleString()}</div>
+    </div>
+    <label>Enter Your Phone Number</label>
+    <input type="tel" id="phoneInput" placeholder="07XX XXX XXX" maxlength="13" oninput="onPhoneInput(this)">
+    <div id="netDetect">${netBadge}</div>
+    <button class="primary-btn" id="nextBtn" onclick="goToStep2()" disabled>
+      Continue to Payment <i class="fas fa-arrow-right"></i>
+    </button>
+  `;
+  setTimeout(() => document.getElementById('phoneInput').focus(), 100);
+}
+
+function onPhoneInput(input) {
+  let v = input.value.replace(/[^\d]/g, '');
+  if (v.length > 10) v = v.slice(0, 10);
+  input.value = v;
+  const ok = v.length === 10 && /^(07|01|06)/.test(v);
+  document.getElementById('nextBtn').disabled = !ok;
+  const detect = document.getElementById('netDetect');
+  if (ok) {
+    detect.innerHTML = currentNetwork === 'safaricom'
+      ? '<span class="net-tag safaricom"><i class="fas fa-check"></i> Safaricom Line Detected</span>'
+      : '<span class="net-tag airtel"><i class="fas fa-check"></i> Airtel Line Detected</span>';
+  } else {
+    detect.innerHTML = currentNetwork === 'safaricom'
+      ? '<span class="net-tag unknown">Enter a valid Safaricom number (07xx/01xx)</span>'
+      : '<span class="net-tag unknown">Enter a valid Airtel number (07xx/01xx/06xx)</span>';
+  }
+}
+
+function goToStep2() {
+  modalState.phone = document.getElementById('phoneInput').value;
+  const b = modalState.bundle;
+  const displaySize = b.displaySize || b.size;
+  document.getElementById('modalContent').innerHTML = `
+    <h2>Pay via M-Pesa</h2>
+    <div class="sub">Send the exact amount below, then enter your M-Pesa code.</div>
+    <div class="instructions">
+      <div class="mpesa-row"><span>Pay to</span><span>M-Pesa</span></div>
+      <div class="mpesa-row"><span>Number</span><span>${MOMO_NUMBER}</span></div>
+      <div class="mpesa-row"><span>Amount</span><span style="color:var(--teal);font-size:16px;">KES ${b.price.toLocaleString()}</span></div>
+      <div class="mpesa-row"><span>Line</span><span>${modalState.phone}</span></div>
+      <div class="mpesa-row"><span>Bundle</span><span>${displaySize}${b.unit ? ' ' + b.unit : ''} · ${b.duration}</span></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:12px 0;line-height:1.6;">
+      <i class="fas fa-info-circle" style="color:var(--teal)"></i>
+      Go to M-Pesa → Lipa na M-Pesa → Send Money → enter <b>${MOMO_NUMBER}</b> → amount <b>KES ${b.price}</b> → confirm.
+      Then paste the M-Pesa confirmation code below.
+    </p>
+    <label>M-Pesa Transaction Code</label>
+    <input type="text" id="mpesaInput" placeholder="e.g. SFH4KX9P2A" maxlength="10" style="text-transform:uppercase;" oninput="onMpesaInput(this)">
+    <button class="primary-btn" id="payBtn" onclick="goToStep3()" disabled>
+      Confirm Payment <i class="fas fa-lock"></i>
+    </button>
+    <button onclick="openModal('${currentTab}', ${bundles[currentTab].indexOf(b)})" style="background:none;border:none;color:var(--muted);width:100%;padding:12px;font-size:13px;cursor:pointer;">
+      <i class="fas fa-arrow-left"></i> Back
+    </button>
+  `;
+}
+
+function onMpesaInput(input) {
+  input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  document.getElementById('payBtn').disabled = input.value.length < 8;
+}
+
+function goToStep3() {
+  const code = document.getElementById('mpesaInput').value;
+  const b = modalState.bundle;
+  document.getElementById('modalContent').innerHTML = `
+    <h2>Connecting to Satellite…</h2>
+    <div class="sub">Please do not close this window.</div>
+    <div class="progress-wrap">
+      <div class="progress-step" id="p1"><div class="dot">1</div> Connecting to Starlink Low-Earth Orbit</div>
+      <div class="progress-step" id="p2"><div class="dot">2</div> Authenticating SIM (${modalState.phone})</div>
+      <div class="progress-step" id="p3"><div class="dot">3</div> Provisioning data package</div>
+      <div class="progress-step" id="p4"><div class="dot">4</div> Activating on network</div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;">M-Pesa ref: <b>${code}</b></p>
+  `;
+  const steps = ['p1','p2','p3','p4'];
+  let i = 0;
+  const run = () => {
+    if (i > 0) document.getElementById(steps[i-1]).classList.remove('active');
+    if (i > 0) document.getElementById(steps[i-1]).classList.add('done');
+    if (i < 4) {
+      document.getElementById(steps[i]).classList.add('active');
+      i++;
+      setTimeout(run, 900);
+    } else {
+      showSuccess();
+    }
+  };
+  setTimeout(run, 300);
+}
+
+function showSuccess() {
+  const b = modalState.bundle;
+  const displaySize = b.displaySize || b.size;
+  document.getElementById('modalContent').innerHTML = `
+    <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+    <div class="success-title">Data Credited!</div>
+    <div class="success-sub">
+      <b>${displaySize}${b.unit ? ' ' + b.unit : ''}</b> · ${b.duration} is now active on<br>
+      <b style="color:var(--teal);font-size:15px;">${modalState.phone}</b><br><br>
+      You'll receive an SMS confirmation shortly.<br>
+      Enjoy your high-speed satellite data 🚀
+    </div>
+    <a href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I just bought ' + (displaySize) + (b.unit ? ' ' + b.unit : '') + ' ' + b.duration + ' on ' + modalState.phone + ' (M-Pesa: ' + (document.getElementById('mpesaInput')?.value || '') + ')')}"
+       target="_blank" rel="noopener"
+       class="primary-btn" style="display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:linear-gradient(90deg,#25D366,#128C7E);color:white;">
+      <i class="fab fa-whatsapp"></i> Notify Support on WhatsApp
+    </a>
+    <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);width:100%;padding:14px;font-size:13px;cursor:pointer;margin-top:6px;">
+      Close
+    </button>
+  `;
+}
+
+/* FAQ */
+function toggleFaq(el) { el.classList.toggle('open'); }
+
+/* LIVE TICKER */
+const tickerNames = ['0722***89','0712***45','0733***12','0701***67','0745***23','0798***54','0110***32','0757***91','0726***78','0788***11'];
+const tickerProducts = ['10GB 1-Hour','25GB 3-Hour','20GB Daily','50GB Daily','Unlimited Daily','100GB Weekly','250GB Weekly','500GB Monthly','1TB Monthly','Unlimited Extreme'];
+const tickerNetworks = ['Safaricom','Airtel'];
+
+function spawnTicker() {
+  const wrap = document.getElementById('tickerWrap');
+  const name = tickerNames[Math.floor(Math.random() * tickerNames.length)];
+  const prod = tickerProducts[Math.floor(Math.random() * tickerProducts.length)];
+  const net = tickerNetworks[Math.floor(Math.random() * tickerNetworks.length)];
+  const netColor = net === 'Safaricom' ? '#4ade80' : '#fca5a5';
+  const el = document.createElement('div');
+  el.className = 'ticker';
+  el.innerHTML = `<i class="fas fa-bolt"></i><div><strong>${name}</strong> just bought <strong>${prod}</strong> on <span style="color:${netColor};font-weight:700;">${net}</span></div>`;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.4s, transform 0.4s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(-110%)';
+    setTimeout(() => el.remove(), 450);
+  }, 5500);
+  if (wrap.children.length > 3) wrap.firstElementChild.remove();
+}
+
+/* INIT */
+renderTabs();
+renderBundles();
+setTimeout(spawnTicker, 3000);
+setInterval(spawnTicker, 8000);
+</script>
+</body>
+</html>
